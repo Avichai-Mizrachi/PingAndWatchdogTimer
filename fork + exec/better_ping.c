@@ -19,11 +19,9 @@
 
 #define SERVER_PORT 3000
 #define SERVER_IP_ADDRESS "127.0.0.1"
-#define FILE_SIZE 5
 
 int icmppack(char *packet, int seq);
 unsigned short calculate_checksum(unsigned short *paddress, int len);
-void smtw(int *msg, int socket_fd);
 
 // run 2 programs using fork + exec
 // command: make clean && make all && ./partb
@@ -43,6 +41,8 @@ int main(int argc, char *argv[])
     }
     
     sleep(4);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
     //Creating socket and using TCP protocol
     int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 
     printf("connected to server\n");
 
-    //////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
 
     // packet to send
     char packet[IP_MAXPACKET];    
@@ -108,14 +108,23 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////
+    
     // Number of packets to send
     int num = 0;   
 
-    // Start the time in the watchdog.
-    int sendstart = 100;
-    smtw(sendstart,socket_fd); 
-
-    // send(socket_fd, sendstart, sizeof(sendstart), 0);  
+    //Start the time in the watchdog.
+    int check = -1;
+    int checknum;
+    while (check < 0 )
+    {
+        checknum = 100;
+        check = send(socket_fd, &checknum , sizeof(checknum),0);
+        if(check == 1)
+        {
+            printf("Sent start to watchdog\n");
+        }
+    }  
 
     while (true)
     {
@@ -123,16 +132,14 @@ int main(int argc, char *argv[])
         int lenOfPacket= icmppack(packet, num); 
         struct timeval start, end;
         gettimeofday(&start, 0);
-
         int bytes_sent = sendto(sock, packet, lenOfPacket, 0, (struct sockaddr *)&dest_in, sizeof(dest_in));
         if (bytes_sent == -1)
         {
-            fprintf(stderr, "sendto() failed with error: %d", errno);
-            return -1;
+            fprintf(stderr, "sendto() failed with error: %d\n", errno);
+            exit(1);
         }
 
         // Get the ping response
-
         // clear packet
         bzero(packet, IP_MAXPACKET); 
         socklen_t len = sizeof(dest_in);
@@ -160,39 +167,19 @@ int main(int argc, char *argv[])
         num++;
         bzero(packet, IP_MAXPACKET);
 
-        // There is 2 seconds delay between each package.
-        sleep(15);
+        // There is 1 seconds delay between each package.
+        sleep(1);
 
         // Reset the time in the watchdog.
-        smtw(sendstart,socket_fd);
+        check = -1;
+        while (check < 0 )
+        {
+            checknum = 100;
+            check = send(socket_fd, &checknum , sizeof(checknum),0);
+        }
     }
     close(sock);
     return 0;
-}
-
-//This function send a message to the watchdog.
-void smtw(int *msg, int socket_fd)
-{
-    int bytes_sent = send(socket_fd, msg, sizeof(msg), 0);
-    switch (bytes_sent)
-    {
-        case(-1):
-        printf("send() failed with error code : %d", errno);
-        close(socket_fd);
-        exit(1);
-        
-        case(0):
-        printf("peer has closed the TCP connection prior to send().\n");
-
-        default:
-        if(bytes_sent < sizeof(msg)){
-        printf("sent only %d bytes from the required %d.\n", sizeof(msg), bytes_sent);
-        }
-
-        else{
-        printf("message was successfully sent.\n");
-        }
-    }
 }
 
 // Compute checksum (RFC 1071).

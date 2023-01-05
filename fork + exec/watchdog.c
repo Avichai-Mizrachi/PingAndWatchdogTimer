@@ -18,8 +18,6 @@
 #define FILE_SIZE 5
 #define TIMEOUT 10
 
-
-
 int main()
 {
 
@@ -67,6 +65,8 @@ int main()
     }
     printf("Waiting for new ping connection...\n");
 
+    ////////////////////////////////////////////////////////////////////////////////////
+
     //Build a struct for the client
     struct sockaddr_in clientAddress; //
     socklen_t clientAddressLen = sizeof(clientAddress);
@@ -101,7 +101,8 @@ int main()
     checknum = 0;
     time_t start = time(NULL);  // Start time
     int elapsed_time;  // Elapsed time
-    //while(1){
+    int x = 1;
+    while(x == 1){
         checknum = 0;
         while (checknum != 100)
         {
@@ -115,16 +116,14 @@ int main()
             
             elapsed_time = time(NULL) - start;
             if (elapsed_time > TIMEOUT) {
+                printf("server <ip> cannot be reached.\n");
+                x = 0;
                 break;
             }
         }
-        //break;
-    //}
-    // //Closing the program
-    printf("server <ip> cannot be reached.\n");
-    // close(client_socket);
-    // close(listeningsocket);
-    sleep(2);
+    }
+
+    //Terminate watchdog and better_ping
     kill(0, SIGINT);
     return 0;
 }

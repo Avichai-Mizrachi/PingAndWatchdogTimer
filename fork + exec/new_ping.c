@@ -16,10 +16,8 @@
 #define IP4_HDRLEN 20 
 // ICMP header len for echo req
 #define ICMP_HDRLEN 8 
-
 #define SERVER_PORT 3000
 #define SERVER_IP_ADDRESS "127.0.0.1"
-#define FILE_SIZE 5
 
 int icmppack(char *packet, int seq);
 unsigned short calculate_checksum(unsigned short *paddress, int len);
@@ -42,6 +40,8 @@ int main(int argc, char *argv[])
     }
     
     sleep(4);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
     //Creating socket and using TCP protocol
     int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -107,6 +107,8 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////
+    
     // Number of packets to send
     int num = 0;   
 
@@ -132,8 +134,8 @@ int main(int argc, char *argv[])
         int bytes_sent = sendto(sock, packet, lenOfPacket, 0, (struct sockaddr *)&dest_in, sizeof(dest_in));
         if (bytes_sent == -1)
         {
-            fprintf(stderr, "sendto() failed with error: %d", errno);
-            return -1;
+            fprintf(stderr, "sendto() failed with error: %d\n", errno);
+            exit(1);
         }
 
         // Get the ping response
@@ -164,8 +166,8 @@ int main(int argc, char *argv[])
         num++;
         bzero(packet, IP_MAXPACKET);
 
-        // There is 2 seconds delay between each package.
-        sleep(15);
+        // There is 1 seconds delay between each package.
+        sleep(10);
 
         // Reset the time in the watchdog.
         check = -1;
