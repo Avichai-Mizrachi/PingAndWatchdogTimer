@@ -15,19 +15,68 @@
 // IPv4 header len without options
 #define IP4_HDRLEN 20 
 // ICMP header len for echo req
-#define ICMP_HDRLEN 8  
+#define ICMP_HDRLEN 8 
 
-unsigned short calculate_checksum(unsigned short *paddress, int len);
+#define SERVER_PORT 3000
+#define SERVER_IP_ADDRESS "127.0.0.1"
+#define FILE_SIZE 5
+
 int icmppack(char *packet, int seq);
+unsigned short calculate_checksum(unsigned short *paddress, int len);
+void smtw(int *msg, int socket_fd);
 
+// run 2 programs using fork + exec
+// command: make clean && make all && ./partb
 int main(int argc, char *argv[])
 {
-
-    if (argc != 2)
+    char *args[2];
+    // compiled watchdog.c by makefile
+    args[0] = "./watchdog";
+    args[1] = NULL;
+    int status;
+    int pid = fork();
+    if (pid == 0)
     {
-        fprintf(stderr, "Invalid command.\n");
+        printf("in child \n");
+        execvp(args[0], args);
+        printf("child exit status is: %d", status);
+    }
+    
+    sleep(4);
+
+    //Creating socket and using TCP protocol
+    int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (socket_fd == -1)
+    {
+        printf("Could not create socket");
         exit(1);
     }
+
+    //Creating sockaddr_in struct, reset it, and enter important values.
+    struct sockaddr_in server_address;
+    memset(&server_address, 0, sizeof(server_address));
+    
+    server_address.sin_family = AF_INET;
+    server_address.sin_port = htons(SERVER_PORT);
+    
+    //Convert the ip to binary
+    int rval = inet_pton(AF_INET, (const char *)SERVER_IP_ADDRESS, &server_address.sin_addr);
+    if (rval <= 0)
+    {
+        perror("inet pton() failed");
+        exit(1);
+    }
+
+    //Connect to the server
+    if (connect(socket_fd, (struct sockaddr *)&server_address, sizeof(server_address)) == -1)
+    {
+        perror("connect() failed");
+        exit(1);
+    }
+
+    printf("connected to server\n");
+
+    //////////////////////////////////////////////////
 
     // packet to send
     char packet[IP_MAXPACKET];    
@@ -59,8 +108,14 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    // number of packets to send
-    int num = 0;      
+    // Number of packets to send
+    int num = 0;   
+
+    // Start the time in the watchdog.
+    int sendstart = 100;
+    smtw(sendstart,socket_fd); 
+
+    // send(socket_fd, sendstart, sizeof(sendstart), 0);  
 
     while (true)
     {
@@ -101,14 +156,43 @@ int main(int argc, char *argv[])
         // get reply data from packet
         memcpy(reply, packet + ICMP_HDRLEN + IP4_HDRLEN, lenOfPacket - ICMP_HDRLEN); 
         float time = (end.tv_sec - start.tv_sec) * 1000.0f + (end.tv_usec - start.tv_usec) / 1000.0f;
-        printf("%s sent %ld bytes, ICMP sequence: %d, Time: %.5f ms\n", IP, bytes_received, icmphdr->un.echo.sequence, time);
+        printf("Received %ld bytes from %s, ICMP sequence: %d, Time: %.5f ms\n", bytes_received, IP, icmphdr->un.echo.sequence, time);
         num++;
         bzero(packet, IP_MAXPACKET);
-        //  There is 2 seconds delay between each package.
-        sleep(2);    
+
+        // There is 2 seconds delay between each package.
+        sleep(15);
+
+        // Reset the time in the watchdog.
+        smtw(sendstart,socket_fd);
     }
     close(sock);
     return 0;
+}
+
+//This function send a message to the watchdog.
+void smtw(int *msg, int socket_fd)
+{
+    int bytes_sent = send(socket_fd, msg, sizeof(msg), 0);
+    switch (bytes_sent)
+    {
+        case(-1):
+        printf("send() failed with error code : %d", errno);
+        close(socket_fd);
+        exit(1);
+        
+        case(0):
+        printf("peer has closed the TCP connection prior to send().\n");
+
+        default:
+        if(bytes_sent < sizeof(msg)){
+        printf("sent only %d bytes from the required %d.\n", sizeof(msg), bytes_sent);
+        }
+
+        else{
+        printf("message was successfully sent.\n");
+        }
+    }
 }
 
 // Compute checksum (RFC 1071).
