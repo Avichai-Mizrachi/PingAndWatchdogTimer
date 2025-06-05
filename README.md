@@ -1,5 +1,3 @@
-בהתבסס על מבנה הקבצים בפרויקט שלך, הנה קובץ README.md באנגלית, מוכן להעתקה:
-
 # PingAndWatchdogTimer
 
 This project demonstrates process management and inter-process communication in C, focusing on implementing a custom ping utility and a watchdog timer mechanism.
